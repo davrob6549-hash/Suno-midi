@@ -37,7 +37,7 @@ MAX_CONCURRENT = 3        # max simultaneous demucs jobs (CPU-bound)
 UPLOAD_DIR.mkdir(exist_ok=True)
 OUTPUT_DIR.mkdir(exist_ok=True)
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='.')
 app.config["MAX_CONTENT_LENGTH"] = (MAX_FILE_MB + 10) * 1024 * 1024
 
 # In-memory job registry
