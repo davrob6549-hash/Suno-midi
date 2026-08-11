@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SunoMIDI — Audio to MIDI Stem Converter</title>
+  <meta name="description" content="Upload your Suno AI music, separate stems, and download MIDI files ready for Ableton, FL Studio, Logic Pro and more." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    /* ── Reset & tokens ─────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #08080f;
+      --surface:  #12121d;
+      --surface2: #1a1a28;
+      --border:   #252538;
+      --border2:  #32324a;
+      --accent:   #7c5cfc;
+      --accent-h: #9b7ffe;
+      --green:    #34d399;
+      --red:      #f87171;
+      --yellow:   #fbbf24;
+      --text:     #e8e6ff;
+      --muted:    #8884a8;
+      --muted2:   #5a587a;
+      --r:        14px;
+      --r-sm:     8px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', -apple-system, sans-serif;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* ── Nav ────────────────────────────────────────────────────────────── */
+    nav {
+      position: sticky; top: 0; z-index: 50;
+      background: rgba(8,8,15,.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 60px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-logo {
+      font-size: 18px; font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #a78bfa, #7c5cfc);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .nav-badge {
+      font-size: 11px; font-weight: 600;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      color: var(--muted);
+      padding: 3px 10px; border-radius: 20px;
+    }
+
+    /* ── Hero ───────────────────────────────────────────────────────────── */
+    .hero {
+      text-align: center;
+      padding: 80px 24px 60px;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute; top: -80px; left: 50%;
+      transform: translateX(-50%);
+      width: 600px; height: 400px;
+      background: radial-gradient(ellipse, rgba(124,92,252,.18) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-eyebrow {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(124,92,252,.12);
+      border: 1px solid rgba(124,92,252,.3);
+      color: #a78bfa;
+      font-size: 12px; font-weight: 600; letter-spacing: .05em;
+      padding: 5px 14px; border-radius: 20px;
+      margin-bottom: 24px;
+    }
+    .hero h1 {
+      font-size: clamp(36px, 6vw, 64px);
+      font-weight: 800;
+      letter-spacing: -1.5px;
+      line-height: 1.1;
+      margin-bottom: 20px;
+    }
+    .hero h1 .grad {
+      background: linear-gradient(135deg, #a78bfa 0%, #7c5cfc 50%, #60a5fa 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .hero p {
+      font-size: 18px; color: var(--muted);
+      max-width: 500px; margin: 0 auto 40px;
+    }
+
+    /* ── Steps bar ──────────────────────────────────────────────────────── */
+    .steps-bar {
+      display: flex; align-items: center; justify-content: center;
+      gap: 0; flex-wrap: wrap;
+      padding: 0 24px 56px;
+      max-width: 700px; margin: 0 auto;
+    }
+    .step-item {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 6px; flex: 1; min-width: 100px;
+    }
+    .step-icon {
+      width: 44px; height: 44px;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+    }
+    .step-label { font-size: 11px; font-weight: 600; color: var(--muted); text-align: center; }
+    .step-arrow { color: var(--border2); font-size: 18px; padding: 0 4px; flex-shrink: 0; margin-top: -18px; }
+
+    /* ── Upload section ─────────────────────────────────────────────────── */
+    .upload-section {
+      max-width: 640px; margin: 0 auto; padding: 0 24px 80px;
+    }
+
+    .dropzone {
+      background: var(--surface);
+      border: 2px dashed var(--border2);
+      border-radius: var(--r);
+      padding: 56px 32px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s, transform .15s;
+      position: relative;
+    }
+    .dropzone:hover { border-color: var(--accent); background: rgba(124,92,252,.04); }
+    .dropzone.drag-over {
+      border-color: var(--accent);
+      background: rgba(124,92,252,.08);
+      transform: scale(1.01);
+    }
+    .dropzone input[type=file] { display: none; }
+    .dz-icon { font-size: 48px; margin-bottom: 16px; display: block; }
+    .dz-title { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+    .dz-sub { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+    .dz-formats {
+      display: inline-flex; gap: 6px; flex-wrap: wrap; justify-content: center;
+      margin-top: 12px;
+    }
+    .dz-formats span {
+      font-size: 11px; font-weight: 600;
+      background: var(--surface2); border: 1px solid var(--border2);
+      color: var(--muted); padding: 2px 8px; border-radius: 4px;
+    }
+
+    /* file selected state */
+    .dropzone.file-selected { border-style: solid; border-color: var(--accent); }
+    .dz-file-name {
+      display: none;
+      font-size: 15px; font-weight: 600;
+      margin-top: 12px; color: var(--text);
+      word-break: break-all;
+    }
+    .dropzone.file-selected .dz-file-name { display: block; }
+    .dropzone.file-selected .dz-sub { display: none; }
+
+    /* Convert button */
+    .btn-convert {
+      width: 100%; margin-top: 16px;
+      background: linear-gradient(135deg, #7c5cfc, #5b3de8);
+      color: #fff;
+      border: none; border-radius: var(--r-sm);
+      padding: 15px 24px;
+      font-size: 16px; font-weight: 700;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      transition: opacity .15s, transform .1s, box-shadow .2s;
+      box-shadow: 0 4px 24px rgba(124,92,252,.35);
+    }
+    .btn-convert:hover { opacity: .92; box-shadow: 0 6px 32px rgba(124,92,252,.5); }
+    .btn-convert:active { transform: scale(.98); }
+    .btn-convert:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
+
+    /* ── Progress card ──────────────────────────────────────────────────── */
+    .progress-card {
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: var(--r);
+      padding: 28px;
+      margin-top: 20px;
+      animation: fadeUp .3s ease;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .pc-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .pc-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+    .pc-file {
+      font-size: 13px; color: var(--muted2);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%;
+    }
+
+    /* Stem rows */
+    .stem-list { display: flex; flex-direction: column; gap: 12px; }
+    .stem-row {
+      display: grid;
+      grid-template-columns: 110px 1fr 80px;
+      align-items: center; gap: 14px;
+    }
+    .stem-name {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 13px; font-weight: 600;
+    }
+    .stem-chip {
+      width: 28px; height: 28px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; flex-shrink: 0;
+    }
+    .stem-chip.vocals { background: rgba(167,139,250,.15); }
+    .stem-chip.bass   { background: rgba(52,211,153,.15); }
+    .stem-chip.drums  { background: rgba(251,191,36,.15); }
+    .stem-chip.other  { background: rgba(96,165,250,.15); }
+
+    .bar-track {
+      background: var(--surface2); border-radius: 4px; height: 6px; overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%; border-radius: 4px; width: 0%;
+      background: linear-gradient(90deg, var(--accent), var(--accent-h));
+      transition: width .5s ease;
+    }
+    .bar-fill.done    { width: 100%; background: linear-gradient(90deg, var(--green), #6ee7b7); }
+    .bar-fill.error   { width: 100%; background: var(--red); }
+    .bar-fill.running { width: 65%; animation: pulse-bar 1.4s ease-in-out infinite; }
+    @keyframes pulse-bar {
+      0%,100% { opacity: 1; } 50% { opacity: .4; }
+    }
+
+    .stem-badge {
+      font-size: 11px; font-weight: 600;
+      padding: 3px 9px; border-radius: 20px; text-align: center;
+    }
+    .stem-badge.pending { background: var(--surface2); color: var(--muted2); }
+    .stem-badge.running { background: rgba(124,92,252,.15); color: #a78bfa; }
+    .stem-badge.done    { background: rgba(52,211,153,.15); color: var(--green); }
+    .stem-badge.error   { background: rgba(248,113,113,.12); color: var(--red); }
+
+    /* Status footer */
+    .pc-status {
+      margin-top: 20px; padding-top: 16px;
+      border-top: 1px solid var(--border);
+      font-size: 13px; color: var(--muted);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .pc-status.done  { color: var(--green); }
+    .pc-status.error { color: var(--red); }
+
+    /* Download button */
+    .btn-download {
+      width: 100%; margin-top: 16px;
+      background: linear-gradient(135deg, #059669, #34d399);
+      color: #fff;
+      border: none; border-radius: var(--r-sm);
+      padding: 14px 24px;
+      font-size: 15px; font-weight: 700;
+      cursor: pointer; text-decoration: none;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      transition: opacity .15s, transform .1s;
+      box-shadow: 0 4px 20px rgba(52,211,153,.25);
+    }
+    .btn-download:hover { opacity: .92; }
+    .btn-download:active { transform: scale(.98); }
+
+    /* Try another */
+    .btn-reset {
+      width: 100%; margin-top: 10px;
+      background: transparent;
+      border: 1px solid var(--border2);
+      color: var(--muted);
+      border-radius: var(--r-sm);
+      padding: 11px 24px;
+      font-size: 13px; font-weight: 600;
+      cursor: pointer;
+      transition: border-color .15s, color .15s;
+    }
+    .btn-reset:hover { border-color: var(--border2); color: var(--text); }
+
+    /* ── Features section ───────────────────────────────────────────────── */
+    .features {
+      border-top: 1px solid var(--border);
+      padding: 72px 24px;
+      text-align: center;
+    }
+    .features-label {
+      font-size: 12px; font-weight: 700; letter-spacing: .1em;
+      text-transform: uppercase; color: var(--muted2);
+      margin-bottom: 12px;
+    }
+    .features h2 { font-size: 32px; font-weight: 800; letter-spacing: -.5px; margin-bottom: 48px; }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 20px; max-width: 900px; margin: 0 auto;
+    }
+    .feat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 24px;
+      text-align: left;
+      transition: border-color .2s;
+    }
+    .feat-card:hover { border-color: var(--border2); }
+    .feat-icon { font-size: 28px; margin-bottom: 12px; display: block; }
+    .feat-title { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+    .feat-desc { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+    /* ── DAW section ────────────────────────────────────────────────────── */
+    .daw-section {
+      border-top: 1px solid var(--border);
+      padding: 72px 24px;
+      max-width: 900px; margin: 0 auto;
+    }
+    .daw-section h2 { font-size: 28px; font-weight: 800; letter-spacing: -.5px; margin-bottom: 8px; }
+    .daw-section .sub { font-size: 15px; color: var(--muted); margin-bottom: 36px; }
+    .daw-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 16px;
+    }
+    .daw-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--r-sm); padding: 18px 20px;
+    }
+    .daw-name { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+    .daw-tip  { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+    /* ── Footer ─────────────────────────────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 32px 24px;
+      text-align: center;
+      color: var(--muted2); font-size: 13px;
+    }
+    footer a { color: var(--muted); text-decoration: none; }
+    footer a:hover { color: var(--text); }
+
+    /* ── Utility ─────────────────────────────────────────────────────────── */
+    .hidden { display: none !important; }
+    .dots { display: inline-flex; gap: 3px; }
+    .dots span {
+      width: 4px; height: 4px; border-radius: 50%; background: currentColor;
+      animation: dot-b .9s infinite ease-in-out;
+    }
+    .dots span:nth-child(2) { animation-delay: .15s; }
+    .dots span:nth-child(3) { animation-delay: .30s; }
+    @keyframes dot-b {
+      0%,80%,100% { transform: translateY(0); }
+      40%          { transform: translateY(-4px); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav>
+  <div class="nav-logo">SunoMIDI</div>
+  <div class="nav-badge">Free · No signup</div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-eyebrow">🎵 AI Music → DAW-Ready MIDI</div>
+  <h1>Turn Suno songs into<br><span class="grad">playable MIDI stems</span></h1>
+  <p>Upload any audio, we'll separate the stems and extract MIDI — vocals, bass, drums, and chords — in minutes.</p>
+</section>
+
+<!-- Pipeline steps -->
+<div class="steps-bar">
+  <div class="step-item">
+    <div class="step-icon">⬆️</div>
+    <div class="step-label">Upload Audio</div>
+  </div>
+  <div class="step-arrow">›</div>
+  <div class="step-item">
+    <div class="step-icon">🔀</div>
+    <div class="step-label">Demucs Stem Split</div>
+  </div>
+  <div class="step-arrow">›</div>
+  <div class="step-item">
+    <div class="step-icon">🎹</div>
+    <div class="step-label">Pitch → MIDI</div>
+  </div>
+  <div class="step-arrow">›</div>
+  <div class="step-item">
+    <div class="step-icon">🥁</div>
+    <div class="step-label">Drum Mapping</div>
+  </div>
+  <div class="step-arrow">›</div>
+  <div class="step-item">
+    <div class="step-icon">📥</div>
+    <div class="step-label">Download ZIP</div>
+  </div>
+</div>
+
+<!-- Upload -->
+<section class="upload-section" id="uploadSection">
+
+  <div class="dropzone" id="dropzone">
+    <input type="file" id="fileInput" accept=".mp3,.wav,.flac,.m4a,.ogg,.aac" />
+    <span class="dz-icon">🎵</span>
+    <div class="dz-title">Drop your audio here</div>
+    <div class="dz-sub">or click to browse files · max 150 MB</div>
+    <div class="dz-file-name" id="dzFileName"></div>
+    <div class="dz-formats">
+      <span>MP3</span><span>WAV</span><span>FLAC</span><span>M4A</span><span>OGG</span><span>AAC</span>
+    </div>
+  </div>
+
+  <button class="btn-convert" id="convertBtn" disabled>
+    <span id="convertBtnIcon">⚡</span>
+    <span id="convertBtnText">Select a file to convert</span>
+  </button>
+
+  <!-- Progress card (shown after upload) -->
+  <div class="progress-card hidden" id="progressCard">
+    <div class="pc-header">
+      <div class="pc-title">Converting</div>
+      <div class="pc-file" id="pcFile">—</div>
+    </div>
+
+    <div class="stem-list" id="stemList"></div>
+
+    <div class="pc-status" id="pcStatus">
+      <span class="dots"><span></span><span></span><span></span></span>
+      Waiting…
+    </div>
+
+    <a class="btn-download hidden" id="downloadBtn" href="#" target="_blank">
+      ⬇ Download MIDI ZIP
+    </a>
+    <button class="btn-reset hidden" id="resetBtn">Convert another file</button>
+  </div>
+
+</section>
+
+<!-- Features -->
+<section class="features">
+  <div class="features-label">How it works</div>
+  <h2>Studio-quality stem extraction</h2>
+  <div class="features-grid">
+    <div class="feat-card">
+      <span class="feat-icon">🔀</span>
+      <div class="feat-title">Demucs htdemucs</div>
+      <div class="feat-desc">Meta's state-of-the-art source separation model splits your audio into 4 clean stems.</div>
+    </div>
+    <div class="feat-card">
+      <span class="feat-icon">🎹</span>
+      <div class="feat-title">Spotify basic-pitch</div>
+      <div class="feat-desc">Polyphonic pitch detection converts vocals, bass, and harmony stems into accurate MIDI notes.</div>
+    </div>
+    <div class="feat-card">
+      <span class="feat-icon">🥁</span>
+      <div class="feat-title">GM Drum Mapping</div>
+      <div class="feat-desc">Onset detection + spectral classification maps drum hits to kick, snare, and hi-hat on GM channel 10.</div>
+    </div>
+    <div class="feat-card">
+      <span class="feat-icon">📦</span>
+      <div class="feat-title">4 MIDI files, 1 ZIP</div>
+      <div class="feat-desc">vocals.mid · bass.mid · drums.mid · other.mid — one ZIP, drag straight into your DAW.</div>
+    </div>
+  </div>
+</section>
+
+<!-- DAW Tips -->
+<section class="daw-section">
+  <h2>DAW import guide</h2>
+  <div class="sub">Works with every major DAW that accepts standard .mid files.</div>
+  <div class="daw-grid">
+    <div class="daw-card">
+      <div class="daw-name">Ableton Live</div>
+      <div class="daw-tip">Drag the .mid file into the Arrangement or Session view. Assign a software instrument to the new MIDI track.</div>
+    </div>
+    <div class="daw-card">
+      <div class="daw-name">FL Studio</div>
+      <div class="daw-tip">Open the Piano Roll → File → Import MIDI, or drag the .mid directly into the Playlist.</div>
+    </div>
+    <div class="daw-card">
+      <div class="daw-name">Logic Pro</div>
+      <div class="daw-tip">Drag .mid into the Tracks area. Logic auto-creates a Software Instrument track.</div>
+    </div>
+    <div class="daw-card">
+      <div class="daw-name">Pro Tools</div>
+      <div class="daw-tip">File → Import → MIDI. Create a new MIDI track and assign your instrument plugin.</div>
+    </div>
+    <div class="daw-card">
+      <div class="daw-name">GarageBand</div>
+      <div class="daw-tip">Drag .mid files into the Tracks area. GarageBand assigns a default instrument automatically.</div>
+    </div>
+    <div class="daw-card">
+      <div class="daw-name">Reaper</div>
+      <div class="daw-tip">File → Import → MIDI File, or drag directly into the timeline. Assign VSTi as needed.</div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <p>SunoMIDI · Free, no account required · Files deleted after 1 hour · <a href="#uploadSection">↑ Back to top</a></p>
+</footer>
+
+<script>
+  /* ── Elements ──────────────────────────────────────────────────────── */
+  const dropzone    = document.getElementById('dropzone');
+  const fileInput   = document.getElementById('fileInput');
+  const dzFileName  = document.getElementById('dzFileName');
+  const convertBtn  = document.getElementById('convertBtn');
+  const convertIcon = document.getElementById('convertBtnIcon');
+  const convertText = document.getElementById('convertBtnText');
+  const progressCard= document.getElementById('progressCard');
+  const pcFile      = document.getElementById('pcFile');
+  const stemList    = document.getElementById('stemList');
+  const pcStatus    = document.getElementById('pcStatus');
+  const downloadBtn = document.getElementById('downloadBtn');
+  const resetBtn    = document.getElementById('resetBtn');
+
+  const STEMS = ['vocals', 'bass', 'drums', 'other'];
+  const ICONS  = { vocals:'🎤', bass:'🎸', drums:'🥁', other:'🎹' };
+
+  let selectedFile = null;
+  let pollTimer    = null;
+
+  /* ── File selection ─────────────────────────────────────────────────── */
+  dropzone.addEventListener('click', e => {
+    if (e.target === convertBtn || convertBtn.contains(e.target)) return;
+    fileInput.click();
+  });
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files[0]) pick(fileInput.files[0]);
+  });
+
+  dropzone.addEventListener('dragover',  e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+  dropzone.addEventListener('dragleave', ()  => dropzone.classList.remove('drag-over'));
+  dropzone.addEventListener('drop', e => {
+    e.preventDefault(); dropzone.classList.remove('drag-over');
+    if (e.dataTransfer.files[0]) pick(e.dataTransfer.files[0]);
+  });
+
+  function pick(file) {
+    selectedFile = file;
+    dropzone.classList.add('file-selected');
+    dzFileName.textContent = `${file.name}  (${fmtBytes(file.size)})`;
+    convertBtn.disabled = false;
+    convertText.textContent = 'Convert to MIDI';
+    convertIcon.textContent = '⚡';
+  }
+
+  function fmtBytes(b) {
+    if (b < 1048576) return (b/1024).toFixed(0) + ' KB';
+    return (b/1048576).toFixed(1) + ' MB';
+  }
+
+  /* ── Upload ─────────────────────────────────────────────────────────── */
+  convertBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    if (!selectedFile || convertBtn.disabled) return;
+    startUpload();
+  });
+
+  function startUpload() {
+    convertBtn.disabled = true;
+    convertIcon.textContent = '';
+    convertText.innerHTML = 'Uploading<span class="dots"><span></span><span></span><span></span></span>';
+
+    const fd = new FormData();
+    fd.append('file', selectedFile);
+
+    fetch('/upload', { method: 'POST', body: fd })
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) { showError(data.error); return; }
+        showProgress(data.job_id, selectedFile.name);
+        poll(data.job_id);
+      })
+      .catch(err => showError('Upload failed: ' + err));
+  }
+
+  /* ── Progress UI ────────────────────────────────────────────────────── */
+  function showProgress(jobId, filename) {
+    progressCard.classList.remove('hidden');
+    pcFile.textContent = filename;
+
+    stemList.innerHTML = '';
+    STEMS.forEach(s => {
+      const row = document.createElement('div');
+      row.className = 'stem-row';
+      row.innerHTML = `
+        <div class="stem-name">
+          <div class="stem-chip ${s}">${ICONS[s]}</div> ${cap(s)}
+        </div>
+        <div class="bar-track"><div class="bar-fill" id="bar-${s}"></div></div>
+        <div class="stem-badge pending" id="badge-${s}">Pending</div>
+      `;
+      stemList.appendChild(row);
+    });
+
+    setStatus('Separating stems…', '');
+    progressCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function updateStem(name, data) {
+    const bar   = document.getElementById(`bar-${name}`);
+    const badge = document.getElementById(`badge-${name}`);
+    if (!bar || !badge) return;
+    const s = data.status;
+    bar.className   = `bar-fill ${s}`;
+    badge.className = `stem-badge ${s}`;
+    badge.textContent = s === 'running' ? 'Working…' : cap(s);
+  }
+
+  function setStatus(msg, cls) {
+    pcStatus.className = `pc-status ${cls}`;
+    const spinner = cls === '' ? ' <span class="dots"><span></span><span></span><span></span></span>' : '';
+    pcStatus.innerHTML = msg + spinner;
+  }
+
+  function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+  /* ── Polling ────────────────────────────────────────────────────────── */
+  function poll(jobId) {
+    clearTimeout(pollTimer);
+    fetch(`/status/${jobId}`)
+      .then(r => r.json())
+      .then(job => {
+        STEMS.forEach(s => { if (job.stems?.[s]) updateStem(s, job.stems[s]); });
+
+        if (job.status === 'done') {
+          setStatus(`✅ ${job.stem_count} stems converted — ready to download!`, 'done');
+          downloadBtn.href = `/download/${jobId}`;
+          downloadBtn.download = job.zip_name || 'midi.zip';
+          downloadBtn.classList.remove('hidden');
+          resetBtn.classList.remove('hidden');
+          convertBtn.disabled = false;
+          convertText.textContent = 'Convert another';
+
+        } else if (job.status === 'error') {
+          setStatus('❌ ' + job.message, 'error');
+          resetBtn.classList.remove('hidden');
+          convertBtn.disabled = false;
+          convertText.textContent = 'Try again';
+          convertIcon.textContent = '⚡';
+
+        } else {
+          setStatus(job.message || 'Processing…', '');
+          pollTimer = setTimeout(() => poll(jobId), 2500);
+        }
+      })
+      .catch(() => { pollTimer = setTimeout(() => poll(jobId), 4000); });
+  }
+
+  /* ── Reset ──────────────────────────────────────────────────────────── */
+  resetBtn.addEventListener('click', () => {
+    clearTimeout(pollTimer);
+    selectedFile = null;
+    fileInput.value = '';
+    dropzone.classList.remove('file-selected', 'drag-over');
+    dzFileName.textContent = '';
+    convertBtn.disabled = true;
+    convertText.textContent = 'Select a file to convert';
+    convertIcon.textContent = '⚡';
+    progressCard.classList.add('hidden');
+    downloadBtn.classList.add('hidden');
+    resetBtn.classList.add('hidden');
+    stemList.innerHTML = '';
+  });
+
+  function showError(msg) {
+    convertBtn.disabled = false;
+    convertText.textContent = 'Try again';
+    convertIcon.textContent = '⚡';
+    alert(msg);
+  }
+</script>
+</body>
+</html>
